@@ -55,7 +55,7 @@ done
 
 if [[ $reset == true ]]; then
     if [[ -n $status || $duration_supplied == true ]]; then
-        printf '--reset cannot be combined with --status or --duration.\n' >&2
+        printf '%s\n' '--reset cannot be combined with --status or --duration.' >&2
         exit 2
     fi
     operation=clearUserPreferredPresence
