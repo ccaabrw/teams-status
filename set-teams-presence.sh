@@ -7,8 +7,8 @@ source "$SCRIPT_DIR/teams-graph-common.sh"
 
 usage() {
     cat <<EOF
-Usage: ${0##*/} --status STATUS [--duration HH:MM:SS] [--what-if]
-       ${0##*/} --reset [--what-if]
+Usage: ${0##*/} --status STATUS [--duration HH:MM:SS] [--what-if] [--cache-token]
+       ${0##*/} --reset [--what-if] [--cache-token]
 
 Statuses: Available, Busy, DoNotDisturb, BeRightBack, Away, Offline
 EOF
@@ -19,6 +19,7 @@ duration='01:00:00'
 duration_supplied=false
 reset=false
 what_if=false
+TEAMS_CACHE_TOKEN=false
 
 while (($#)); do
     case "$1" in
@@ -39,6 +40,10 @@ while (($#)); do
             ;;
         --what-if)
             what_if=true
+            shift
+            ;;
+        --cache-token)
+            TEAMS_CACHE_TOKEN=true
             shift
             ;;
         --help|-h)
