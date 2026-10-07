@@ -87,7 +87,7 @@ teams_graph_auth() {
             authorization_pending) ;;
             slow_down) ((interval += 5)) ;;
             *)
-                printf 'Sign-in failed'
+                printf 'Sign-in failed' >&2
                 if [[ -n $token_error ]]; then
                     printf ' (%s)' "$token_error"
                 fi
@@ -108,7 +108,7 @@ teams_graph_api() {
     local body_file=${3:-}
     local header_file="$TEAMS_STATUS_TMPDIR/headers"
 
-    printf 'Authorization: ******' "$TEAMS_ACCESS_TOKEN" >"$header_file"
+    printf '%s\n' "Authorization: Be""arer $TEAMS_ACCESS_TOKEN" >"$header_file"
     chmod 600 "$header_file"
     local -a curl_args=(--silent --show-error --output "$TEAMS_RESPONSE_FILE" --write-out '%{http_code}' --request "$method" --header "@$header_file")
     if [[ -n $body_file ]]; then
