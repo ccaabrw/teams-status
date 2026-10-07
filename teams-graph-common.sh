@@ -37,11 +37,67 @@ teams_graph_http() {
     }
 }
 
+teams_graph_cache_init() {
+    local scope=$1
+    local cache_root=${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}
+    if [[ $cache_root != /* ]]; then
+        printf 'Token caching requires an absolute XDG_CACHE_HOME or HOME.\n' >&2
+        return 1
+    fi
+    TEAMS_TOKEN_CACHE_DIR="$cache_root/teams-status"
+    if [[ -L $TEAMS_TOKEN_CACHE_DIR ]]; then
+        printf 'Refusing to use a symlink as the token cache directory.\n' >&2
+        return 1
+    fi
+    (umask 077; mkdir -p -- "$TEAMS_TOKEN_CACHE_DIR") || return 1
+    if [[ ! -d $TEAMS_TOKEN_CACHE_DIR || ! -O $TEAMS_TOKEN_CACHE_DIR ]]; then
+        printf 'Token cache directory must be owned by the current user.\n' >&2
+        return 1
+    fi
+    chmod 700 "$TEAMS_TOKEN_CACHE_DIR" || return 1
+    TEAMS_TOKEN_CACHE_FILE="$TEAMS_TOKEN_CACHE_DIR/$scope.json"
+}
+
+teams_graph_cache_load() {
+    local now
+    [[ -f $TEAMS_TOKEN_CACHE_FILE && ! -L $TEAMS_TOKEN_CACHE_FILE && -O $TEAMS_TOKEN_CACHE_FILE ]] || return 1
+    now="$(date +%s)" || return 1
+    TEAMS_ACCESS_TOKEN="$(jq -er --argjson now "$now" '
+        select(.expires_at | type == "number") |
+        select(.expires_at > ($now + 60)) |
+        .access_token |
+        select(type == "string" and length > 0) |
+        select(test("[\\r\\n]") | not)
+    ' "$TEAMS_TOKEN_CACHE_FILE" 2>/dev/null)" || return 1
+}
+
+teams_graph_cache_save() {
+    local lifetime now cache_tmp
+    lifetime="$(jq -er '.expires_in | select(type == "number" and . > 60 and . == floor)' "$TEAMS_RESPONSE_FILE")" || return 1
+    now="$(date +%s)" || return 1
+    cache_tmp="$(mktemp "$TEAMS_TOKEN_CACHE_DIR/.token.XXXXXX")" || return 1
+    if ! jq --argjson now "$now" --argjson lifetime "$lifetime" \
+        '{access_token: .access_token, expires_at: ($now + $lifetime)}' \
+        "$TEAMS_RESPONSE_FILE" >"$cache_tmp" ||
+        ! chmod 600 "$cache_tmp" ||
+        ! mv -fT -- "$cache_tmp" "$TEAMS_TOKEN_CACHE_FILE"; then
+        rm -f -- "$cache_tmp"
+        return 1
+    fi
+}
+
 teams_graph_auth() {
     local scope=$1
     local form_file="$TEAMS_STATUS_TMPDIR/form"
     local device_code user_code verification_uri expires_in interval
     local token_error
+
+    if [[ ${TEAMS_CACHE_TOKEN:-false} == true ]]; then
+        teams_graph_cache_init "$scope" || return 1
+        if teams_graph_cache_load; then
+            return 0
+        fi
+    fi
 
     jq -nr \
         --arg client_id "$TEAMS_GRAPH_CLIENT_ID" \
@@ -78,6 +134,9 @@ teams_graph_auth() {
         if [[ $TEAMS_HTTP_STATUS =~ ^2 ]]; then
             TEAMS_ACCESS_TOKEN="$(jq -r '.access_token // empty' "$TEAMS_RESPONSE_FILE")"
             if [[ -n $TEAMS_ACCESS_TOKEN ]]; then
+                if [[ ${TEAMS_CACHE_TOKEN:-false} == true ]] && ! teams_graph_cache_save; then
+                    printf 'Unable to cache the access token; continuing without saving it.\n' >&2
+                fi
                 return 0
             fi
         fi
