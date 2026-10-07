@@ -78,9 +78,10 @@ The Bash scripts use Microsoft Graph's device-code sign-in with the Microsoft
 Graph PowerShell public client application. Follow the displayed sign-in
 instructions in a browser. Querying requires `Presence.Read`; setting or
 resetting requires `Presence.ReadWrite`. Organization consent policies may
-require administrator approval. No passwords or tokens are saved; the access
-token is held temporarily in memory, and temporary request files are removed
-when the script exits.
+require administrator approval. No passwords or tokens are persisted; the
+access token is briefly held in memory and written to a mode-restricted temporary
+header file for the Graph request. Temporary files are removed when the script
+exits.
 
 API reference: [get presence](https://learn.microsoft.com/en-us/graph/api/presence-get?view=graph-rest-1.0),
 [set preferred presence](https://learn.microsoft.com/en-us/graph/api/presence-setuserpreferredpresence?view=graph-rest-1.0),
