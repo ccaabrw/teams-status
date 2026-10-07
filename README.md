@@ -1,7 +1,7 @@
 # teams-status
 
-PowerShell scripts to query and set your own Microsoft Teams presence through
-Microsoft Graph.
+Scripts to query and set your own Microsoft Teams presence through Microsoft
+Graph, with PowerShell and Bash versions.
 
 ## Setup
 
@@ -51,6 +51,36 @@ presence may differ from the preference, and updates may take time to appear.
 Successful set/reset requests normally return no output; authentication and API
 errors stop the script. Use `Disconnect-MgGraph` when finished to end the
 Graph sign-in in the current PowerShell process.
+
+## Linux (Bash)
+
+Install `curl` and `jq`, then run the scripts from any directory:
+
+```bash
+# Return the signed-in user's effective presence.
+./get-teams-presence.sh
+
+# Set a preferred status for one hour (the default).
+./set-teams-presence.sh --status Busy
+
+# Specify a positive duration in hours:minutes:seconds.
+./set-teams-presence.sh --status DoNotDisturb --duration 02:00:00
+
+# Appear offline, or clear the preference.
+./set-teams-presence.sh --status Offline
+./set-teams-presence.sh --reset
+
+# Preview without signing in or changing presence.
+./set-teams-presence.sh --status Away --what-if
+```
+
+The Bash scripts use Microsoft Graph's device-code sign-in with the Microsoft
+Graph PowerShell public client application. Follow the displayed sign-in
+instructions in a browser. Querying requires `Presence.Read`; setting or
+resetting requires `Presence.ReadWrite`. Organization consent policies may
+require administrator approval. No passwords or tokens are saved; the access
+token is held temporarily in memory, and temporary request files are removed
+when the script exits.
 
 API reference: [get presence](https://learn.microsoft.com/en-us/graph/api/presence-get?view=graph-rest-1.0),
 [set preferred presence](https://learn.microsoft.com/en-us/graph/api/presence-setuserpreferredpresence?view=graph-rest-1.0),
